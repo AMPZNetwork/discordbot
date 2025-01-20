@@ -1,0 +1,3 @@
+[submodule "japi"]
+	path = japi
+	url = https://github.com/comroid-git/japi
