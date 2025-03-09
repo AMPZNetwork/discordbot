@@ -5,13 +5,18 @@ import lombok.Value;
 import lombok.experimental.NonFinal;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.channel.unions.MessageChannelUnion;
+import org.comroid.api.func.util.Debug;
+import org.comroid.api.func.util.Ratelimit;
 import org.comroid.api.text.Markdown;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.OutputStream;
+import java.time.Duration;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Value
 @NonFinal
@@ -20,7 +25,8 @@ public class DiscordChannelOutputStream extends OutputStream {
     MessageChannelUnion channel;
     @Nullable Message replyTo;
     @Nullable String  prefix;
-    Queue<@NotNull Byte> data = new LinkedList<>();
+    Queue<@NotNull Byte>                        data        = new LinkedList<>();
+    AtomicReference<CompletableFuture<Message>> MESSAGE_REF = new AtomicReference<>(CompletableFuture.completedFuture(null));
 
     public DiscordChannelOutputStream(MessageChannelUnion channel) {
         this(channel, null, null);
@@ -62,8 +68,13 @@ public class DiscordChannelOutputStream extends OutputStream {
         }
 
         var text = new String(data);
-        text = Markdown.CodeBlock.apply(text);
-        if (replyTo == null) channel.sendMessage(text).queue();
-        else replyTo.reply(text).queue();
+        Ratelimit.run(text, Duration.ofSeconds(1), MESSAGE_REF, (existing, lines) -> {
+            var output = String.join("\n", lines);
+            lines.clear();
+
+            output = Markdown.CodeBlock.apply(output);
+            if (replyTo == null) return channel.sendMessage(output).submit();
+            else return replyTo.reply(output).submit();
+        }).exceptionally(Debug.exceptionLogger("Could not send text to Discord"));
     }
 }

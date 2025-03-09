@@ -48,10 +48,15 @@ public class DiscordChannelInputStream extends InputStream implements EventListe
     }
 
     @Override
-    @SneakyThrows
     public int read() {
         if (buffer == null || index >= buffer.length()) synchronized (lines) {
-            while (lines.isEmpty()) lines.wait();
+            while (lines.isEmpty()) {
+                try {
+                    lines.wait();
+                } catch (InterruptedException ignored) {
+                    return -1;
+                }
+            }
             buffer = lines.poll();
             index  = 0;
         }

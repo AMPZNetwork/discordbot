@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.Value;
 import lombok.experimental.FieldDefaults;
+import lombok.experimental.NonFinal;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.unions.MessageChannelUnion;
 import org.comroid.api.attr.Named;
@@ -17,11 +18,11 @@ import org.comroid.api.text.StringMode;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class BotCommands {
     @Command(permission = "8")
@@ -57,21 +58,34 @@ public class BotCommands {
     }
 
     @Value
-    private static class Forwarder implements Runnable {
+    @NonFinal
+    private abstract static class Forwarder implements Runnable {
         InputStream  input;
         OutputStream output;
 
+        protected abstract boolean running();
+
         @Override
         @SneakyThrows
-        @SuppressWarnings("InfiniteLoopStatement")
         public void run() {
-            while (true) input.transferTo(output);
+            int          r   = 0;
+            final byte[] buf = new byte[1024];
+            while (running() || (r = input.read(buf)) != -1) {
+                output.write(buf, 0, r);
+                r = 0;
+            }
         }
     }
 
     @Command(permission = "8")
     public static class execute {
-        private static final String PROCESS_FINISHED = "Process finished with exit code ";
+        private static final String PROCESS_FINISHED    = "Process finished with exit code ";
+        private static final String PROCESS_INTERRUPTED = "Process exceeded timeout of 10s";
+
+        @Command(permission = "8")
+        public static void minecraft(MessageChannelUnion channel, @Command.Arg String server, @Command.Arg(stringMode = StringMode.GREEDY) String command) {
+            shell(channel, "echo \"%s\">>/opt/mc/%s/stdin".formatted(command, server));
+        }
 
         @Command(permission = "8")
         public static String shell(MessageChannelUnion channel, @Command.Arg(stringMode = StringMode.GREEDY) String script) {
@@ -86,30 +100,42 @@ public class BotCommands {
                     proc = new ProcessBuilder("bash", tmp.getAbsolutePath());
                 } else proc = new ProcessBuilder("cmd.exe", "/c", script);
 
-                try (var pool = Executors.newCachedThreadPool()) {
+                var exit = new boolean[]{ false };
+                var pool = Executors.newCachedThreadPool();
+                try {
                     try (
                             var dcIn = new DiscordChannelInputStream(channel); var dcOut = new DiscordChannelOutputStream(channel, "ℹ️ - ");
                             var dcErr = new DiscordChannelOutputStream(channel, "⚠️ - ");
                     ) {
                         var exec = proc.start();
-                        pool.execute(new Forwarder(dcIn, exec.getOutputStream()));
-                        pool.execute(new Forwarder(exec.getInputStream(), dcOut));
-                        pool.execute(new Forwarder(exec.getErrorStream(), dcErr));
 
-                        return PROCESS_FINISHED + exec.waitFor();
+                        pool.execute(new Forwarder(dcIn, exec.getOutputStream()) {
+                            protected boolean running() {
+                                return exit[0];
+                            }
+                        });
+                        pool.execute(new Forwarder(exec.getInputStream(), dcOut) {
+                            protected boolean running() {
+                                return exit[0];
+                            }
+                        });
+                        pool.execute(new Forwarder(exec.getErrorStream(), dcErr) {
+                            protected boolean running() {
+                                return exit[0];
+                            }
+                        });
+
+                        return exec.waitFor(10, TimeUnit.SECONDS) ? PROCESS_FINISHED + exec.waitFor() : PROCESS_INTERRUPTED;
                     }
                 } finally {
+                    pool.shutdownNow();
+                    exit[0] = true;
                     if (tmp != null)//noinspection ResultOfMethodCallIgnored
                         tmp.delete();
                 }
-            } catch (InterruptedException | IOException e) {
-                throw new RuntimeException("A fatal unexpected error has occurred", e);
+            } catch (Throwable t) {
+                throw new RuntimeException("A fatal unexpected error has occurred", t);
             }
-        }
-
-        @Command(permission = "8")
-        public static void minecraft(MessageChannelUnion channel, @Command.Arg String server, @Command.Arg(stringMode = StringMode.GREEDY) String command) {
-            shell(channel, "echo \"%s\">>/opt/mc/%s/stdin".formatted(command, server));
         }
     }
 }
