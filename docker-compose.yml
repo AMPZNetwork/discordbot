@@ -1,0 +1,5 @@
+services:
+  discordbot:
+    build: .
+    volumes:
+      - /srv/cred:/srv/cred:r
