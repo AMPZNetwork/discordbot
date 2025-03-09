@@ -57,7 +57,8 @@ public class DiscordChannelOutputStream extends OutputStream {
             this.data.clear();
 
             data = new byte[buf.length];
-            System.arraycopy(buf, 0, data, 0, buf.length);
+            for (var i = 0; i < buf.length; i++)
+                data[i] = buf[i];
         }
 
         var text = new String(data);
