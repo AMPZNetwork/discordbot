@@ -1,4 +1,4 @@
 #!/usr/bin/bash
 
 git pull
-gradle bootRun
+./gradlew bootRun
