@@ -1,5 +1,6 @@
 package com.ampznetwork.discordbot;
 
+import com.ampznetwork.discordbot.announce.AnnouncementChannel;
 import com.ampznetwork.discordbot.io.DiscordChannelInputStream;
 import com.ampznetwork.discordbot.io.DiscordChannelOutputStream;
 import lombok.AccessLevel;
@@ -15,12 +16,14 @@ import org.comroid.api.attr.Named;
 import org.comroid.api.func.util.Command;
 import org.comroid.api.os.OS;
 import org.comroid.api.text.StringMode;
+import org.intellij.lang.annotations.Language;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
@@ -31,8 +34,10 @@ public class BotCommands {
     }
 
     @Command(permission = "8")
-    public static Object announce(@Command.Arg String message) {
-        return "wip";
+    public static void announce(@Language("Markdown") @Command.Arg String message) {
+        Arrays.stream(AnnouncementChannel.values())
+                .parallel()
+                .forEach(ac -> ac.push(message));
     }
 
     @Getter

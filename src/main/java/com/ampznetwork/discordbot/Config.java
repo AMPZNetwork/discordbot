@@ -14,14 +14,25 @@ import java.util.logging.Level;
 @Value
 @Builder
 public class Config {
-    @Default String token = "@/srv/cred/discord/ampz_bot.txt";
+    @Default String discordToken = "@/srv/cred/discord/ampz_bot.txt";
+    @Default String githubToken  = "@/srv/cred/github/comroid-commit.txt";
 
     @SneakyThrows
-    public @Nullable String resolveToken() {
+    public @Nullable String resolveDiscordToken() {
         try {
-            return DelegateStream.readAll(ResourceLoader.fromResourceString(getToken())).replaceAll("\r?\n","").trim();
+            return DelegateStream.readAll(ResourceLoader.fromResourceString(getDiscordToken())).replaceAll("\r?\n", "").trim();
         } catch (Throwable t) {
-            Log.at(Level.WARNING, "Could not resolve token from resource string '" + getToken() + "'", t);
+            Log.at(Level.WARNING, "Could not resolve token from resource string '" + getDiscordToken() + "'", t);
+            return null;
+        }
+    }
+
+    @SneakyThrows
+    public @Nullable String resolveGithubToken() {
+        try {
+            return DelegateStream.readAll(ResourceLoader.fromResourceString(getDiscordToken())).replaceAll("\r?\n", "").trim();
+        } catch (Throwable t) {
+            Log.at(Level.WARNING, "Could not resolve token from resource string '" + getDiscordToken() + "'", t);
             return null;
         }
     }
