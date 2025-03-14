@@ -2,6 +2,7 @@ package com.ampznetwork.discordbot.util;
 
 import lombok.extern.java.Log;
 import org.comroid.api.Polyfill;
+import org.comroid.api.func.ext.Context;
 import org.comroid.api.func.ext.Wrap;
 import org.comroid.api.java.StackTraceUtils;
 import org.jetbrains.annotations.NotNull;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Optional;
 import java.util.logging.Level;
+import java.util.stream.Stream;
 
 /**
  * brought to you by ChatGPT
@@ -23,7 +25,7 @@ import java.util.logging.Level;
 @Log
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
-public class ApplicationContextProvider implements ApplicationContextAware {
+public class ApplicationContextProvider implements ApplicationContextAware, Context {
     private static ApplicationContext applicationContext;
 
     public static Wrap<ApplicationContext> get() {
@@ -62,5 +64,9 @@ public class ApplicationContextProvider implements ApplicationContextAware {
     @Override
     public void setApplicationContext(@NotNull ApplicationContext applicationContext) {
         ApplicationContextProvider.applicationContext = applicationContext;
+    }
+
+    public <T> Stream<? extends T> streamContextMembers(boolean includeChildren, Class<T> type) {
+        return applicationContext.getBeansOfType(type, false, includeChildren).values().stream();
     }
 }

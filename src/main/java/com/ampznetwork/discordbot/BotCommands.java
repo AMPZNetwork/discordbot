@@ -3,6 +3,7 @@ package com.ampznetwork.discordbot;
 import com.ampznetwork.discordbot.announce.AnnouncementChannel;
 import com.ampznetwork.discordbot.io.DiscordChannelInputStream;
 import com.ampznetwork.discordbot.io.DiscordChannelOutputStream;
+import com.ampznetwork.discordbot.util.ApplicationContextProvider;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +14,7 @@ import lombok.experimental.NonFinal;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.unions.MessageChannelUnion;
 import org.comroid.api.attr.Named;
+import org.comroid.api.config.ConfigurationManager;
 import org.comroid.api.func.util.Command;
 import org.comroid.api.os.OS;
 import org.comroid.api.text.StringMode;
@@ -29,6 +31,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 public class BotCommands {
+    @Command(permission = "8")
+    public static void refresh() {
+        ApplicationContextProvider.wrap(ConfigurationManager.Presentation$JDA.class).ifPresent(ConfigurationManager.Presentation::resend);
+    }
+
     @Command(permission = "8")
     public static Object promote(@Command.Arg User user, @Command.Arg String minecraft, @Command.Arg PromotionTarget target) {
         return "wip";
