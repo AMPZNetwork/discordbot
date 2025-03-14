@@ -24,6 +24,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
@@ -34,10 +35,11 @@ public class BotCommands {
     }
 
     @Command(permission = "8")
-    public static void announce(@Language("Markdown") @Command.Arg String message) {
-        Arrays.stream(AnnouncementChannel.values())
-                .parallel()
-                .forEach(ac -> ac.push(message));
+    public static CompletableFuture<String> announce(@Language("Markdown") @Command.Arg String message) {
+        return CompletableFuture.allOf(Arrays.stream(AnnouncementChannel.values()).parallel().map(ac -> CompletableFuture.supplyAsync(() -> {
+            ac.push(message);
+            return null;
+        })).toArray(CompletableFuture[]::new)).thenApply($ -> "Complete");
     }
 
     @Getter
@@ -93,54 +95,56 @@ public class BotCommands {
         }
 
         @Command(permission = "8")
-        public static String shell(MessageChannelUnion channel, @Command.Arg(stringMode = StringMode.GREEDY) String script) {
-            try {
-                File           tmp = null;
-                ProcessBuilder proc;
-                if (!OS.isWindows) {
-                    tmp = File.createTempFile("script", ".sh");
-                    try (var fis = new FileOutputStream(tmp)) {
-                        fis.write(script.getBytes(StandardCharsets.US_ASCII));
-                    }
-                    proc = new ProcessBuilder("bash", tmp.getAbsolutePath());
-                } else proc = new ProcessBuilder("cmd.exe", "/c", script);
-
-                var exit = new boolean[]{ false };
-                var pool = Executors.newCachedThreadPool();
+        public static CompletableFuture<String> shell(MessageChannelUnion channel, @Command.Arg(stringMode = StringMode.GREEDY) String script) {
+            return CompletableFuture.supplyAsync(() -> {
                 try {
-                    try (
-                            var dcIn = new DiscordChannelInputStream(channel); var dcOut = new DiscordChannelOutputStream(channel, "ℹ️ - ");
-                            var dcErr = new DiscordChannelOutputStream(channel, "⚠️ - ");
-                    ) {
-                        var exec = proc.start();
+                    File           tmp = null;
+                    ProcessBuilder proc;
+                    if (!OS.isWindows) {
+                        tmp = File.createTempFile("script", ".sh");
+                        try (var fis = new FileOutputStream(tmp)) {
+                            fis.write(script.getBytes(StandardCharsets.US_ASCII));
+                        }
+                        proc = new ProcessBuilder("bash", tmp.getAbsolutePath());
+                    } else proc = new ProcessBuilder("cmd.exe", "/c", script);
 
-                        pool.execute(new Forwarder(dcIn, exec.getOutputStream()) {
-                            protected boolean running() {
-                                return exit[0];
-                            }
-                        });
-                        pool.execute(new Forwarder(exec.getInputStream(), dcOut) {
-                            protected boolean running() {
-                                return exit[0];
-                            }
-                        });
-                        pool.execute(new Forwarder(exec.getErrorStream(), dcErr) {
-                            protected boolean running() {
-                                return exit[0];
-                            }
-                        });
+                    var exit = new boolean[]{ false };
+                    var pool = Executors.newCachedThreadPool();
+                    try {
+                        try (
+                                var dcIn = new DiscordChannelInputStream(channel); var dcOut = new DiscordChannelOutputStream(channel, "ℹ️ - ");
+                                var dcErr = new DiscordChannelOutputStream(channel, "⚠️ - ");
+                        ) {
+                            var exec = proc.start();
 
-                        return exec.waitFor(10, TimeUnit.SECONDS) ? PROCESS_FINISHED + exec.waitFor() : PROCESS_INTERRUPTED;
+                            pool.execute(new Forwarder(dcIn, exec.getOutputStream()) {
+                                protected boolean running() {
+                                    return exit[0];
+                                }
+                            });
+                            pool.execute(new Forwarder(exec.getInputStream(), dcOut) {
+                                protected boolean running() {
+                                    return exit[0];
+                                }
+                            });
+                            pool.execute(new Forwarder(exec.getErrorStream(), dcErr) {
+                                protected boolean running() {
+                                    return exit[0];
+                                }
+                            });
+
+                            return exec.waitFor(10, TimeUnit.SECONDS) ? PROCESS_FINISHED + exec.waitFor() : PROCESS_INTERRUPTED;
+                        }
+                    } finally {
+                        pool.shutdownNow();
+                        exit[0] = true;
+                        if (tmp != null)//noinspection ResultOfMethodCallIgnored
+                            tmp.delete();
                     }
-                } finally {
-                    pool.shutdownNow();
-                    exit[0] = true;
-                    if (tmp != null)//noinspection ResultOfMethodCallIgnored
-                        tmp.delete();
+                } catch (Throwable t) {
+                    throw new RuntimeException("A fatal unexpected error has occurred", t);
                 }
-            } catch (Throwable t) {
-                throw new RuntimeException("A fatal unexpected error has occurred", t);
-            }
+            });
         }
     }
 }
