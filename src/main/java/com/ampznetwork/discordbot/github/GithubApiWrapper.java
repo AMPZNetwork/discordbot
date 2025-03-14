@@ -5,10 +5,12 @@ import com.ampznetwork.discordbot.github.model.GitFileInfo;
 import com.ampznetwork.discordbot.github.model.GitFileUpdateRequest;
 import lombok.Value;
 import org.comroid.api.comp.Base64;
+import org.comroid.api.info.Log;
 import org.comroid.api.model.Authentication;
 import org.comroid.api.net.REST;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.logging.Level;
 
 @Value
 public class GithubApiWrapper {
@@ -35,12 +37,15 @@ public class GithubApiWrapper {
     }
 
     public CompletableFuture<REST.Response> updateFileContent(String repoOwner, String repoName, String filePath, String content) {
-        return retrieveFileInfo(repoOwner, repoName, filePath)
-                .thenApply(gfi -> gfi.getContent().getSha())
-                .exceptionally(t -> null /* assume file does not exist; set to null to create new file */)
-                .thenCompose(sha -> request(REST.Method.PUT, "https://api.github.com/repos/%s/%s/contents/%s".formatted(repoOwner, repoName, filePath))
-                        .setBody(new GitFileUpdateRequest("Automated content update", new GitComitter("Kaleidox", "robot@kaleidox.de"),
-                                Base64.encode(content), sha))
-                        .execute());
+        return retrieveFileInfo(repoOwner, repoName, filePath).thenApply(gfi -> gfi.getContent().getSha())
+                .exceptionally(t -> {
+                    Log.at(Level.WARNING, "Could not edit file %s, trying to create it...".formatted(filePath), t);
+                    // assume file does not exist; set to null to create new file
+                    return null;
+                })
+                .thenCompose(sha -> request(REST.Method.PUT, "https://api.github.com/repos/%s/%s/contents/%s".formatted(repoOwner, repoName, filePath)).setBody(
+                                new GitFileUpdateRequest("Automated content update", new GitComitter("Kaleidox", "robot@kaleidox.de"), Base64.encode(content), sha))
+                        .execute()
+                        .thenApply(REST.Response::validate2xxOK));
     }
 }
