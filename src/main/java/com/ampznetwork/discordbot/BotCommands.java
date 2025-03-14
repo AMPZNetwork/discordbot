@@ -36,10 +36,8 @@ public class BotCommands {
 
     @Command(permission = "8")
     public static CompletableFuture<String> announce(@Language("Markdown") @Command.Arg String message) {
-        return CompletableFuture.allOf(Arrays.stream(AnnouncementChannel.values()).parallel().map(ac -> CompletableFuture.supplyAsync(() -> {
-            ac.push(message);
-            return null;
-        })).toArray(CompletableFuture[]::new)).thenApply($ -> "Complete");
+        return CompletableFuture.allOf(Arrays.stream(AnnouncementChannel.values()).parallel().map(ac -> ac.push(message)).toArray(CompletableFuture[]::new))
+                .thenApply($ -> "Finished");
     }
 
     @Getter
