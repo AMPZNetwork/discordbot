@@ -32,6 +32,12 @@ import java.util.concurrent.TimeUnit;
 
 public class BotCommands {
     @Command(permission = "8")
+    public static void reload() {
+        ApplicationContextProvider.wrap(ConfigurationManager.class).ifPresent(ConfigurationManager::reload);
+        refresh();
+    }
+
+    @Command(permission = "8")
     public static void refresh() {
         ApplicationContextProvider.wrap(ConfigurationManager.Presentation$JDA.class).ifPresent(ConfigurationManager.Presentation::resend);
     }

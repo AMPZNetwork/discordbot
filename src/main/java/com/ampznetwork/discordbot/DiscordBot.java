@@ -30,8 +30,6 @@ public class DiscordBot {
         SpringApplication.run(DiscordBot.class, args);
     }
 
-    private @Autowired Command.Manager cmdr;
-
     @Bean
     public ConfigurationManager<Config> configManager(@Autowired ApplicationContextProvider context) {
         return new ConfigurationManager<>(context, Config.class, "/srv/discordbot/config.json");
@@ -62,9 +60,11 @@ public class DiscordBot {
     }
 
     @Bean
+    @ConditionalOnExpression("jda != null")
     public @Nullable ConfigurationManager<?>.Presentation$JDA configJdaPresentation(@Autowired ConfigurationManager<Config> configManager, @Autowired JDA jda)
     throws InterruptedException {
         var config = configManager.getConfig();
+        configManager.reload(true);
         jda.awaitReady();
         return Optional.of(config.getPresentationChannelId())
                 .filter(x -> x != 0)
