@@ -62,8 +62,10 @@ public class DiscordBot {
     }
 
     @Bean
-    public @Nullable ConfigurationManager<?>.Presentation$JDA configJdaPresentation(@Autowired ConfigurationManager<Config> configManager, @Autowired JDA jda) {
+    public @Nullable ConfigurationManager<?>.Presentation$JDA configJdaPresentation(@Autowired ConfigurationManager<Config> configManager, @Autowired JDA jda)
+    throws InterruptedException {
         var config = configManager.getConfig();
+        jda.awaitReady();
         return Optional.of(config.getPresentationChannelId())
                 .filter(x -> x != 0)
                 .map(jda::getTextChannelById)
@@ -78,6 +80,10 @@ public class DiscordBot {
                     return channel;
                 }))
                 .map(channel -> configManager.new Presentation$JDA(channel))
+                .filter(it -> {
+                    it.resend();
+                    return true;
+                })
                 .orElse(null);
     }
 

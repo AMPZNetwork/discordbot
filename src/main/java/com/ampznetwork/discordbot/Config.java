@@ -61,7 +61,7 @@ public class Config implements DataNode {
         String repositoryOwner          = "AMPZNetwork";
         String repositoryName           = "information";
         String announcementsFilePath    = "Website/data/homepage/announcements.json";
-        String announcementsFilePattern = "{\"message\":\"$message\"}";
+        String announcementsFilePattern = "{\\\"message\\\":\\\"$message\\\"}";
         String commitMessage            = "Automated announcement forwarder";
     }
 }
