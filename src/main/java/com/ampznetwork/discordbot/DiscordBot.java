@@ -49,8 +49,12 @@ public class DiscordBot {
 
     @Bean
     public @Nullable Authentication discordAuthentication(@Autowired Config config) {
-        var token = config.resolveDiscordToken();
-        return token == null ? null : Authentication.ofToken(token);
+        try {
+            var token = config.resolveDiscordToken();
+            return token == null ? null : Authentication.ofToken(token);
+        } catch (Throwable ignored) {
+            return null;
+        }
     }
 
     @Bean
@@ -98,10 +102,14 @@ public class DiscordBot {
 
     @Bean
     public @Nullable Authentication githubAuthentication(@Autowired Config config) {
-        var token = config.resolveGithubToken();
-        if (token == null) return null;
-        var fName = new File(config.getDiscord().getToken()).getName();
-        return Authentication.ofToken(fName.substring(0, fName.indexOf('.')), token);
+        try {
+            var token = config.resolveGithubToken();
+            if (token == null) return null;
+            var fName = new File(config.getDiscord().getToken()).getName();
+            return Authentication.ofToken(fName.substring(0, fName.indexOf('.')), token);
+        } catch (Throwable ignored) {
+            return null;
+        }
     }
 
     @Bean
