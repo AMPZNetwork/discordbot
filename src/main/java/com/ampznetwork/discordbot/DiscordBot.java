@@ -74,7 +74,7 @@ public class DiscordBot {
                 .filter(x -> x != 0)
                 .map(jda::getTextChannelById)
                 .or(() -> Optional.ofNullable(jda.getGuildById(495506209881849856L)).map(ampz -> {
-                    var channel = ampz.createTextChannel("cobalton-config")
+                    var channel = ampz.createTextChannel("modbot-config")
                             .addMemberPermissionOverride(776570372178837517L, 10256, 0)
                             .addPermissionOverride(ampz.getPublicRole(), 0, 3072)
                             .submit()
